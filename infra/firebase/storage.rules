@@ -1,0 +1,73 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function activeGaushalaRole(gaushalaId, role) {
+      return signedIn()
+        && firestore.exists(
+          /databases/(default)/documents/gaushala_admins/$(request.auth.uid + '_' + gaushalaId)
+        )
+        && firestore.get(
+          /databases/(default)/documents/gaushala_admins/$(request.auth.uid + '_' + gaushalaId)
+        ).data.userId == request.auth.uid
+        && firestore.get(
+          /databases/(default)/documents/gaushala_admins/$(request.auth.uid + '_' + gaushalaId)
+        ).data.gaushalId == gaushalaId
+        && firestore.get(
+          /databases/(default)/documents/gaushala_admins/$(request.auth.uid + '_' + gaushalaId)
+        ).data.status == 'active'
+        && firestore.get(
+          /databases/(default)/documents/gaushala_admins/$(request.auth.uid + '_' + gaushalaId)
+        ).data.role == role;
+    }
+
+    function canUploadGaushalaMedia(gaushalaId) {
+      return activeGaushalaRole(gaushalaId, 'owner')
+        || activeGaushalaRole(gaushalaId, 'editor');
+    }
+
+    function validStagingImage() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+    }
+
+    match /public/gaushalas/{gaushalaId}/{filePath=**} {
+      allow read: if resource != null
+        && resource.metadata.moderationStatus == 'approved'
+        && resource.metadata.publicationStatus == 'published';
+      allow write: if false;
+    }
+
+    match /staging/gaushalas/{gaushalaId}/{uploaderUid}/{filePath=**} {
+      allow read: if false;
+      allow write: if resource == null
+        && signedIn()
+        && request.auth.uid == uploaderUid
+        && canUploadGaushalaMedia(gaushalaId)
+        && validStagingImage();
+    }
+
+    match /private/kyc/{gaushalaId}/{filePath=**} {
+      allow read, write: if false;
+    }
+
+    match /private/certificates/{userId}/{filePath=**} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /private/exports/{userId}/{filePath=**} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,171 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return signedIn() && request.auth.token.superAdmin == true;
+    }
+
+    function membershipPath(gaushalaId) {
+      return /databases/$(database)/documents/gaushala_admins/$(request.auth.uid + '_' + gaushalaId);
+    }
+
+    function hasActiveMembership(gaushalaId) {
+      return signedIn()
+        && exists(membershipPath(gaushalaId))
+        && get(membershipPath(gaushalaId)).data.userId == request.auth.uid
+        && get(membershipPath(gaushalaId)).data.gaushalId == gaushalaId
+        && get(membershipPath(gaushalaId)).data.status == 'active';
+    }
+
+    function hasRole(gaushalaId, role) {
+      return hasActiveMembership(gaushalaId)
+        && get(membershipPath(gaushalaId)).data.role == role;
+    }
+
+    function isAssignedAdmin(gaushalaId) {
+      return hasRole(gaushalaId, 'owner')
+        || hasRole(gaushalaId, 'editor')
+        || hasRole(gaushalaId, 'viewer');
+    }
+
+    function canCreateUpdate(gaushalaId) {
+      return hasRole(gaushalaId, 'owner') || hasRole(gaushalaId, 'editor');
+    }
+
+    function validUserProfileCreate() {
+      return request.resource.data.keys().hasAll(['name', 'email', 'locale', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'email', 'locale', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.locale is string
+        && request.resource.data.createdAt == request.time;
+    }
+
+    function validUserProfileUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly(['name', 'email', 'locale', 'notificationPreferences'])
+        && (!('name' in changed) || request.resource.data.name is string)
+        && (!('email' in changed) || request.resource.data.email is string)
+        && (!('locale' in changed) || request.resource.data.locale is string)
+        && (!('notificationPreferences' in changed) || request.resource.data.notificationPreferences is map);
+    }
+
+    match /gaushalas/{gaushalaId} {
+      allow get, list: if resource.data.status == 'active'
+        || (signedIn() && isAssignedAdmin(gaushalaId))
+        || isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && validUserProfileCreate();
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && validUserProfileUpdate();
+      allow delete: if false;
+    }
+
+    match /gaushala_admins/{membershipId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /donations/{donationId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /campaigns/{campaignId} {
+      allow get, list: if resource.data.status == 'active'
+        || (signedIn() && isAssignedAdmin(resource.data.gaushalId));
+      allow create, update, delete: if false;
+    }
+
+    match /updates/{updateId} {
+      allow get, list: if resource.data.status == 'approved'
+        || (signedIn() && isAssignedAdmin(resource.data.gaushalId));
+      allow create: if signedIn()
+        && canCreateUpdate(request.resource.data.gaushalId)
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.status == 'pending_moderation'
+        && request.resource.data.keys().hasAll([
+          'gaushalId', 'authorId', 'title', 'description', 'imageUrls',
+          'videoUrl', 'cowsTagged', 'status', 'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'gaushalId', 'authorId', 'title', 'description', 'imageUrls',
+          'videoUrl', 'cowsTagged', 'status', 'createdAt'
+        ])
+        && request.resource.data.gaushalId is string
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.imageUrls is list
+        && (request.resource.data.videoUrl == null || request.resource.data.videoUrl is string)
+        && request.resource.data.cowsTagged is int
+        && request.resource.data.cowsTagged >= 0
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /tax_certificates/{certificateId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /payouts/{payoutId} {
+      allow get, list: if signedIn() && hasRole(resource.data.gaushalId, 'owner');
+      allow create, update, delete: if false;
+    }
+
+    match /refund_requests/{requestId} {
+      allow get, list: if signedIn() && resource.data.requestedBy == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read is bool;
+      allow create, delete: if false;
+    }
+
+    match /gaushala_sensitive/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /gaushala_kyc_documents/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /audit_log/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /webhook_events/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /platform_config/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

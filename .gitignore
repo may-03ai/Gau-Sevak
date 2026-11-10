@@ -1,0 +1,66 @@
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+firebase-adminsdk-*.json
+
+# Node.js and TypeScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tsbuildinfo
+coverage/
+dist/
+build/
+
+# React / frontend tooling
+.next/
+out/
+.vite/
+.turbo/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.flutter-*
+build/
+android/local.properties
+ios/Flutter/.last_build_id
+*.lock
+!pubspec.lock
+
+# Firebase local and generated state
+.firebase/
+.firebase-local/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+
+# Terraform state, plans, and local cache
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

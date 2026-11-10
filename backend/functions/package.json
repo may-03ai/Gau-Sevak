@@ -1,0 +1,11 @@
+{
+  "name": "gau-sevak-functions",
+  "private": true,
+  "main": "src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-functions": "^7.4.0"
+  }
+}
