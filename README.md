@@ -1,6 +1,6 @@
 # Gau-Sevak
 
-Gau-Sevak is planned as a multi-Gaushala donation marketplace for India. This repository currently contains a project scaffold and planning documentation only. It does not contain a working application, configured service, live payment integration, or deployed infrastructure.
+Gau-Sevak is planned as a multi-Gaushala donation marketplace for India. This repository contains a project scaffold and planning documentation, plus a limited locally testable Firebase Functions foundation. It does not contain the donor/admin applications, product workflows, live payment integration, provisioned cloud service, or deployed infrastructure.
 
 ## Project Goals
 - Provide distinct mobile and administrative experiences for the approved user roles.
@@ -24,7 +24,7 @@ These are high-level goals only. The V2.0 Master System Prompt and corrective V2
 - `.github/`: repository-wide Copilot guidance, scoped instructions, and workflow placeholder.
 - `apps/mobile/`: Flutter mobile application boundary.
 - `apps/admin-gaushala/`, `apps/admin-super/`: separate React admin application boundaries.
-- `backend/functions/`: domain-organized Cloud Functions placeholder.
+- `backend/functions/`: TypeScript Firebase Functions v2 foundation with public health and authenticated account-context exports; product workflows remain unimplemented.
 - `backend/pdf-service/`: isolated Cloud Run PDF service placeholder.
 - `packages/shared-types/`, `api-contracts/`, `documentation/`: reusable, framework-neutral sharing boundaries.
 - `infra/firebase/`, `infra/terraform/`, `infra/scripts/`: security-rule placeholders and infrastructure boundaries.
@@ -37,15 +37,15 @@ Each application and service is intended to remain independently maintainable. S
 Milestone 0 covers foundation and documentation review; Milestones 1–10 cover secure development foundations, donor MVP, administration, sandbox payments/ledger, marketplace, privacy/tax documents, recurring/restricted routes, future programs, operational readiness, and gated production release. The detailed task list and gates are in [`docs/implementation/milestone-tracker.md`](docs/implementation/milestone-tracker.md). The product phase proposal is in [`docs/product/mvp-scope.md`](docs/product/mvp-scope.md). All remain subject to owner and specialist review.
 
 ## Setup
-No application features or frontend/backend business dependencies are implemented. The Firebase CLI was already installed globally; `firebase-functions` 7.4.0 is installed locally only so the Firebase CLI can load the empty Functions emulator entrypoint. Emulator binaries are cached per user on first run.
+No mobile/admin applications or product workflows are implemented. The Functions package has build, type-check, lint, unit-test, and emulator-test scripts; see [backend/functions](backend/functions/README.md) and the [backend test plan](docs/testing/backend-test-plan.md). The Firebase CLI was already installed globally. Emulator binaries are cached per user on first run.
 
 1. Review both PDFs in `docs/source/` and the extraction limitations in `docs/source/README.md`; apply V2.1 to conflicts without discarding V2.0 feature scope.
 2. The local emulator scripts select Node 22.23.4 for Firebase Functions. Schedule an upgrade before its 2027-04-30 upstream EOL and re-verify Firebase support before that change.
-3. Use the local-only emulator scripts in `infra/scripts/`; they select the verified portable Node 22 runtime for emulator child processes. **Unverified:** no app-specific build or application tests exist.
+3. Use the local-only emulator scripts in `infra/scripts/`; they select the verified portable Node 22 runtime for emulator child processes. Backend checks cover only the current foundation; mobile/admin build and product workflow suites do not yet exist.
 4. Copy `.env.example` to a local environment file only after approved configuration is available. Keep secret values out of version control.
 5. Do not run deployment, Terraform apply, production Firebase setup, or live payment configuration as part of setup.
 
 ## Security and Status
-Firebase Firestore and Storage rules currently deny all access. They are fail-closed placeholders, not usable authorization policies. Empty folders are retained with `.gitkeep` files. There are no business data fixtures, application features, integrations, or generated credentials.
+Firestore and Storage rules are deny-by-default with explicit client-access grants for the reviewed paths; they are not blanket deny-all rules. The 19 Firestore and 4 Storage emulator Rules tests are documented in the [Rules test plan](docs/testing/security-rules-test-plan.md). These tests do not cover Firebase Admin SDK authorization, deployed IAM, or production security approval. Empty folders are retained with `.gitkeep` files. There are no product workflows, live integrations, or generated credentials.
 
 See [`docs/implementation/technical-decisions.md`](docs/implementation/technical-decisions.md) for unresolved decisions and approval gates. The source PDFs were inspected for text extraction; no application runtime, provider integration, or cloud resource has been configured.

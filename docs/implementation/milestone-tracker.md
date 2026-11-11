@@ -37,19 +37,39 @@
 - [ ] Review deployed Storage-to-Firestore IAM permission and backend Admin SDK authorization before any cloud deployment.
 - [ ] Product owner reviews test evidence and remaining gaps.
 
-### 0.5 Specialist and owner decisions — Blocked on approval
-- [ ] Obtain legal funds-flow / PA classification and provider-approved Route model.
-- [ ] Confirm donee eligibility, tax reporting/certificate ownership, accounting and ledger policy with CA/donee.
-- [ ] Confirm FCRA/foreign donation policy and DPDP commencement/roles/retention with specialists.
+### 0.5 Git Baseline — Complete with evidence
+- [x] Initialize Git and record the project baseline at `b62b0bc37f2ca021c9263cb07ae313f7037b0bb5`.
+
+### 0.6 Development Workstation and CI Baseline — In progress
+- [ ] Decide supported Windows baseline and Android/iOS build targets.
+- [ ] Resolve Android license state; install Visual Studio C++ workload only if Windows desktop builds are required.
+- [ ] Approve package managers and tool version pinning after architecture approval.
+- [ ] Configure CI to build before deployment and run lint, type-checks, unit/emulator tests, secret scanning, and dependency scanning.
+- [ ] Define the emulator strategy and required CI quality gates.
+
+## Pre-production and external approval gates
+
+These are workflow-specific and production-release gates, not a blanket block on safe local or sandbox development. Keep gated behavior disabled until the applicable approval is documented with named owners, dated evidence, and required independent review. V2.1 G1–G10 requirements are:
+
+| Gate | Required approval evidence | Owner |
+|---|---|---|
+| G1 — Legal funds-flow opinion | Written Indian legal opinion on platform role, payment-aggregator applicability, custody of funds, linked-account model, and refunds. | Founder + payments counsel |
+| G2 — Razorpay approval | Written approval for the exact charity marketplace and Route model, including linked accounts, fees, payout holds, refunds/reversals, recurring payments, and any foreign-payment flow. | Payments lead |
+| G3 — Donee / bank KYC | Verify each Gaushala’s legal identity, bank account, entity PAN, current registrations, authorized signatory, and applicable beneficial/controlling-person checks. | Compliance ops |
+| G4 — Tax forms | CA-approved migration of legacy approvals, Section 133 eligibility, FN 113 data mapping, FN 114 sample, and correction/reissue process. | CA + donee |
+| G5 — FCRA | No foreign donations until the citizenship/source decision tree, valid registration or prior permission, designated SBI account, and provider/bank route are approved. | FCRA counsel + bank |
+| G6 — DPDP | Dated commencement matrix, privacy notice, consent records, grievance process, processor contracts, rights workflow, breach response, and retention schedule. | Privacy counsel / DPO function |
+| G7 — Ledger / reconciliation | Capture, transfer, settlement, refund, reversal, and fees reconcile to provider test reports with no duplicate or missing financial events. | Finance + backend |
+| G8 — Security | Threat model, Rules/IAM tests, secret and dependency scans, external penetration test, and closure or documented acceptance of all critical/high findings. | Security lead |
+| G9 — Reliability | Successful backup restoration, incident runbooks, alert drills, load test, queue retry/dead-letter test, provider outage test, and webhook replay test. | SRE / DevOps |
+| G10 — Customer operations | Published terms, refund/dispute policy, grievance contact, support SLA, suspension communications, and incident-notification templates. | Customer operations |
+
+Additional pending owner and specialist decisions:
+- [ ] Confirm donee eligibility, tax-reporting/certificate ownership, accounting, and ledger policy with the CA and donee.
+- [ ] Confirm FCRA/foreign-donation policy and DPDP commencement, roles, and retention with qualified specialists.
 - [x] Confirm the Firebase runtime guide lists Node 22 and record official Node upstream EOL as 2027-04-30.
 - [ ] Re-check Google Cloud's specific runtime decommission schedule before any cloud deployment.
 - [ ] Approve environments, regions, IAM, state, budgets, data boundaries, and support/incident ownership.
-
-### 0.6 Development workstation and CI baseline — Not started
-- [ ] Decide supported Windows baseline and Android/iOS build targets.
-- [ ] Resolve Android license state; install Visual Studio C++ workload only if Windows desktop builds are required.
-- [ ] Initialize Git and choose package managers/tool version pinning after architecture approval.
-- [ ] Define CI jobs, secret scanning, dependency scanning, format/lint/type/test gates, and emulator strategy.
 
 ## Milestone 1 — Secure Development Foundations
 - [ ] Create approved dev-only Firebase project/emulator configuration; do not create production resources.
@@ -77,6 +97,36 @@
 - [ ] Implement sandbox create-order/payment-attempt idempotency after current API review.
 - [ ] Implement raw-body webhook verification and durable unique inbox; acknowledge only after persistence.
 - [ ] Implement async worker/outbox, retries, dead-letter handling, and Firestore read projection.
+### 1.0.1 Firebase Functions Backend Bootstrap — In review
+- [x] Add Firebase Admin initialization, reusable authentication guards, safe error helpers, and logger wrappers.
+- [x] Export the limited `healthCheck` HTTP function and `getMyAuthContext` authenticated callable.
+- [x] Verify an isolated TypeScript build, backend unit tests, Functions emulator integration tests, Rules suites, type-check, and lint; see [backend test plan](../testing/backend-test-plan.md).
+- [x] Document backend architecture, current API contracts, test scope, and generated-output/deployment-build limitations.
+- [ ] Review and accept the Milestone 1.0.1 documentation and current Git checkpoint.
+
+Milestone 1.0.1 remains in review pending documentation and Git checkpoint review. This foundation does not complete broader Milestone 1 work or any product workflow.
+
+### 1.0.2 User Management — Not started
+
+### 1.0.3 Authentication and Authorization Hardening — Not started
+
+### 1.0.4 Gaushala Membership Management — Not started
+
+## Agreed engineering roadmap IDs — cross-reference
+
+The existing detailed Milestone 2–10 workstream headings below are retained. This cross-reference aligns them with the agreed engineering sequence without renumbering or replacing those detailed checklists.
+
+| Agreed engineering ID | Agreed milestone | Existing detailed workstream(s) |
+|---|---|---|
+| 2.0 | Flutter Donor App UI | Milestone 2 — Donor MVP Shell (No Live Money) |
+| 3.0 | Gaushala Discovery and Profile | Milestones 3 and 5 — Gaushala and Platform Administration; Marketplace Discovery and Content |
+| 4.0 | Sandbox Donation System | Milestone 4 — Payment and Ledger Sandbox |
+| 5.0 | Admin Portals | Milestone 3 — Gaushala and Platform Administration |
+| 6.0 | Campaigns and Notifications | Milestone 5 — Marketplace Discovery and Content |
+| 7.0 | Tax Documents and Recurring Donations | Milestones 6 and 7 — Refunds, Reports, Tax Documents, and Privacy; Recurring Donations and Restricted Routes |
+| 8.0 | Future Growth and Expansion | Milestone 8 — Future Programs: CSR, Sponsorship, In-Kind Drives |
+| 9.0 | Production Preparation | Milestones 9 and 10 — Operational Scale and Release Candidate; Production Launch and Monitoring |
+
 - [ ] Test duplicate/out-of-order/replayed events, amount mismatch, crashes, retries, transfer/settlement states, and repair reconciliation.
 
 ## Milestone 5 — Marketplace Discovery and Content

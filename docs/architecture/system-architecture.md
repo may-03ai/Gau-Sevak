@@ -1,6 +1,6 @@
 # System Architecture
 
-**Status:** Proposed baseline for review. No service is provisioned and no application code is implemented. V2.1 corrects V2.0 where they conflict.
+**Status:** Proposed baseline for review; no service is provisioned. A limited Firebase Functions foundation exists for health checks and verified account context, but no product workflows are implemented. V2.1 corrects V2.0 where they conflict.
 
 ## Logical View
 ```mermaid

@@ -13,7 +13,7 @@
 | Java JDK | OpenJDK 21.0.10, Android Studio JBR | Found at `C:\Program Files\Android\Android Studio\jbr`; `java` is not on PATH and `JAVA_HOME` is unset. JDK 21 meets Firebase Emulator Suite's Java 11+ requirement. Start/test scripts set this JDK for their child process only. |
 | Node.js | 24.19.0 global; 22.23.4 portable | Global Node 24 remains unchanged. Emulator scripts select Node 22 from `%LOCALAPPDATA%\GauSevak\tools\node-v22.23.4-win-x64`. |
 | npm | 11.17.0 global; 10.9.9 portable | npm 10.9.9 is bundled with Node 22.23.4. |
-| Git | 2.55.0.windows.3 | Installed; this workspace currently has no `.git` metadata, so it is not an initialized Git repository. |
+| Git | 2.55.0.windows.3 | Initialized; Milestone 0.5 established baseline commit `b62b0bc37f2ca021c9263cb07ae313f7037b0bb5`. Use `git branch --show-current` and `git status --short` to inspect the active branch and worktree; branch names vary by task. |
 | Firebase CLI | 15.35.0 | Already installed at the user-level npm path; no CLI install was needed. |
 
 Flutter Doctor also reports that Android licenses need acceptance, no Android device is currently connected, and Visual Studio with Desktop development with C++ is absent. Visual Studio is only needed for Flutter Windows desktop builds, not Android or Firebase emulators. No version manager (`nvm`, `fnm`, `volta`) was found.
@@ -36,9 +36,9 @@ Node.js v22.23.4 x64 was downloaded from the official Node.js distribution, chec
 | Emulator Hub | `127.0.0.1:4400` |
 | Emulator logging | `127.0.0.1:4500` |
 
-These are Firebase's documented default service ports, explicitly bound to `127.0.0.1`; all were available during the audit. Demo project IDs prevent operations from reaching real Firebase resources. Keep `--project demo-gau-sevak` on every local command and do not replace the default with a production ID. Firebase CLI may download emulator binaries to `%USERPROFILE%\.cache\firebase\emulators` on first run; this is a user-cache download, not cloud provisioning. The existing Firestore and Storage rules deny all access, so emulator data access will also be denied until rules are deliberately changed and tested.
+These are Firebase's documented default service ports, explicitly bound to `127.0.0.1`; all were available during the audit. Demo project IDs prevent operations from reaching real Firebase resources. Keep `--project demo-gau-sevak` on every local command and do not replace the default with a production ID. Firebase CLI may download emulator binaries to `%USERPROFILE%\.cache\firebase\emulators` on first run; this is a user-cache download, not cloud provisioning. Firestore and Storage rules deny access by default while granting reviewed client access to selected paths; see the [Rules test plan](../testing/security-rules-test-plan.md). Emulator Rules tests do not verify deployed IAM or backend Admin SDK authorization.
 
-The Functions package uses `firebase-functions` 7.4.0 only for Firebase CLI codebase discovery and has an empty entry point with no exported functions or business logic. The Functions emulator loaded the empty source under Node 22.23.4. npm reported deprecated transitive `node-domexception` and `glob` packages during initial installation; review dependency health before adding application code.
+The Functions package uses Firebase Admin and Functions SDKs and exports only `healthCheck` (a generic HTTP health check) and `getMyAuthContext` (a callable that returns the authenticated caller's account context). It also has build, type-check, lint, unit-test, and emulator-test scripts. These are foundation checks only; business workflows and live integrations are not implemented.
 
 ## Commands
 Run from the repository root in PowerShell:
