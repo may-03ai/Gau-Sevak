@@ -13,7 +13,6 @@
 - [x] Map product features, roles, architecture responsibilities, conflicts, and future phases.
 - [x] Record technical decisions, open questions, approval gates, and source extraction limitations.
 - [x] Product owner accepts the documentation baseline for development.
-- [ ] Security, privacy, payments, finance/CA, and legal owners confirm their decision backlog.
 
 ### 0.3 Local Development Environment and Firebase Emulator Foundation — In review (owner review pending)
 - [x] Audit Windows, Flutter, Dart, Android SDK, Java, Node.js, npm, Git, and Firebase CLI versions.
@@ -21,7 +20,7 @@
 - [x] Verify Node 22 runtime support and upstream lifecycle; record EOL and upgrade requirement.
 - [x] Verify bundled JDK 21, Java PATH state, and Firebase Emulator Suite Java requirement.
 - [x] Configure demo-only project, loopback emulator ports, existing rules/index paths, and helper scripts.
-- [x] Add local setup and troubleshooting runbook; preserve deny-all rules.
+- [x] Add local setup and troubleshooting runbook; preserve deny-by-default rules with explicit reviewed grants.
 - [x] Download emulator binaries to the user cache and run connectivity checks for all seven configured local endpoints.
 - [x] Exercise detached start/stop helpers; verify the process tree stops and ports close.
 - [x] Install and verify portable Node 22.23.4 under user AppData; emulator smoke confirms Node 22 is used.
@@ -65,8 +64,10 @@ These are workflow-specific and production-release gates, not a blanket block on
 | G10 — Customer operations | Published terms, refund/dispute policy, grievance contact, support SLA, suspension communications, and incident-notification templates. | Customer operations |
 
 Additional pending owner and specialist decisions:
+- [ ] Security, privacy, payments, finance/CA, and legal owners confirm their decision backlog.
 - [ ] Confirm donee eligibility, tax-reporting/certificate ownership, accounting, and ledger policy with the CA and donee.
 - [ ] Confirm FCRA/foreign-donation policy and DPDP commencement, roles, and retention with qualified specialists.
+- [ ] Confirm whether the Milestone 1.0.2 verified-email requirement should apply platform-wide; it is not an automatically permanent policy.
 - [x] Confirm the Firebase runtime guide lists Node 22 and record official Node upstream EOL as 2027-04-30.
 - [ ] Re-check Google Cloud's specific runtime decommission schedule before any cloud deployment.
 - [ ] Approve environments, regions, IAM, state, budgets, data boundaries, and support/incident ownership.
@@ -78,35 +79,23 @@ Additional pending owner and specialist decisions:
 - [ ] Define Firebase Auth configuration, role/membership source, and service identities without broad grants.
 - [ ] Add fail-closed rule tests, synthetic fixtures, local secrets guidance, and audit/logging baseline.
 
-## Milestone 2 — Donor MVP Shell (No Live Money)
-- [ ] Approve one-Gaushala pilot workflow, language, supported devices, and acceptance criteria.
-- [ ] Implement approved sign-in/profile and account recovery.
-- [ ] Implement public profile and accessible loading/empty/error/offline states.
-- [ ] Implement donation intent/payment-attempt UI and sandbox-only status/history, if provider sandbox is approved.
-- [ ] Verify no client-side privileged keys, tax promises, or authoritative financial state.
-
-## Milestone 3 — Gaushala and Platform Administration
-- [ ] Build approved application/onboarding and document-review state machine.
-- [ ] Define owner/editor/viewer permission matrix, tenant isolation, admin MFA/step-up, and audit events.
-- [ ] Build Super Admin review/suspension/moderation and support workflows.
-- [ ] Build Gaushala Admin profile/content/report workflows after marketplace scope approval.
-- [ ] Test cross-tenant reads, exports, writes, membership changes, and suspended-recipient behavior.
-
-## Milestone 4 — Payment and Ledger Sandbox
-- [ ] Approve ledger model, balanced posting rules, amount/currency constraints, reconciliation and migration policy.
-- [ ] Implement sandbox create-order/payment-attempt idempotency after current API review.
-- [ ] Implement raw-body webhook verification and durable unique inbox; acknowledge only after persistence.
-- [ ] Implement async worker/outbox, retries, dead-letter handling, and Firestore read projection.
-### 1.0.1 Firebase Functions Backend Bootstrap — In review
+### 1.0.1 Firebase Functions Backend Bootstrap — Complete with evidence (`11d3dd5`)
 - [x] Add Firebase Admin initialization, reusable authentication guards, safe error helpers, and logger wrappers.
 - [x] Export the limited `healthCheck` HTTP function and `getMyAuthContext` authenticated callable.
 - [x] Verify an isolated TypeScript build, backend unit tests, Functions emulator integration tests, Rules suites, type-check, and lint; see [backend test plan](../testing/backend-test-plan.md).
 - [x] Document backend architecture, current API contracts, test scope, and generated-output/deployment-build limitations.
-- [ ] Review and accept the Milestone 1.0.1 documentation and current Git checkpoint.
+- [x] Commit the reviewed backend bootstrap checkpoint as `11d3dd5` on the feature branch.
 
-Milestone 1.0.1 remains in review pending documentation and Git checkpoint review. This foundation does not complete broader Milestone 1 work or any product workflow.
+This milestone establishes the Firebase Functions backend foundation only. It does not complete broader Milestone 1 work or imply production readiness.
 
-### 1.0.2 User Management — Not started
+### 1.0.2 User Management Backend — Complete for local-development scope (`01b7f52`)
+- [x] Implement duplicate-safe profile provisioning, own-profile retrieval, and permitted profile updates.
+- [x] Derive ownership from verified callable auth context; validate inputs with strict allowlists and use Admin Auth as the canonical email source.
+- [x] Deny direct client access to user profile documents under the current callable-only policy.
+- [x] Verify backend unit tests, Functions Emulator integration tests, Firestore Rules tests, and Storage Rules tests; see [backend test plan](../testing/backend-test-plan.md).
+- [x] Document the profile API, ownership boundary, and email verification policy; commit as `01b7f52` on the feature branch.
+
+The verified-email requirement is the current Milestone 1.0.2 implementation policy, not a permanently approved platform-wide rule. Product-owner confirmation remains pending. Completion is for the implemented and tested local-development scope and does not imply production readiness.
 
 ### 1.0.3 Authentication and Authorization Hardening — Not started
 
@@ -127,6 +116,25 @@ The existing detailed Milestone 2–10 workstream headings below are retained. T
 | 8.0 | Future Growth and Expansion | Milestone 8 — Future Programs: CSR, Sponsorship, In-Kind Drives |
 | 9.0 | Production Preparation | Milestones 9 and 10 — Operational Scale and Release Candidate; Production Launch and Monitoring |
 
+## Milestone 2 — Donor MVP Shell (No Live Money)
+- [ ] Approve one-Gaushala pilot workflow, language, supported devices, and acceptance criteria.
+- [ ] Implement approved sign-in/profile and account recovery.
+- [ ] Implement public profile and accessible loading/empty/error/offline states.
+- [ ] Implement donation intent/payment-attempt UI and sandbox-only status/history, if provider sandbox is approved.
+- [ ] Verify no client-side privileged keys, tax promises, or authoritative financial state.
+
+## Milestone 3 — Gaushala and Platform Administration
+- [ ] Build approved application/onboarding and document-review state machine.
+- [ ] Define owner/editor/viewer permission matrix, tenant isolation, admin MFA/step-up, and audit events.
+- [ ] Build Super Admin review/suspension/moderation and support workflows.
+- [ ] Build Gaushala Admin profile/content/report workflows after marketplace scope approval.
+- [ ] Test cross-tenant reads, exports, writes, membership changes, and suspended-recipient behavior.
+
+## Milestone 4 — Payment and Ledger Sandbox
+- [ ] Approve ledger model, balanced posting rules, amount/currency constraints, reconciliation and migration policy.
+- [ ] Implement sandbox create-order/payment-attempt idempotency after current API review.
+- [ ] Implement raw-body webhook verification and durable unique inbox; acknowledge only after persistence.
+- [ ] Implement async worker/outbox, retries, dead-letter handling, and Firestore read projection.
 - [ ] Test duplicate/out-of-order/replayed events, amount mismatch, crashes, retries, transfer/settlement states, and repair reconciliation.
 
 ## Milestone 5 — Marketplace Discovery and Content
