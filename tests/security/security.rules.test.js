@@ -10,6 +10,7 @@ const {
 const {
   doc,
   collection,
+  deleteDoc,
   getDoc,
   getDocs,
   query,
@@ -213,37 +214,48 @@ test('public users can read active campaigns and approved updates only', async (
   await assertFails(getDoc(doc(db, 'updates', ids.updatePending)));
 });
 
-test('donors read only their own profile and cannot change sensitive fields', async () => {
+test('clients cannot read or list user profiles', async () => {
   const ids = makeFixture();
   await seedFixture(ids);
-  const db = firestoreFor(ids.donorA);
+  const ownDb = firestoreFor(ids.donorA);
+  const unauthenticatedDb = testEnvironment.unauthenticatedContext().firestore();
 
-  await assertSucceeds(getDoc(doc(db, 'users', ids.donorA)));
-  await assertFails(getDoc(doc(db, 'users', ids.donorB)));
-  await assertSucceeds(updateDoc(doc(db, 'users', ids.donorA), { name: 'Updated donor' }));
-  await assertFails(updateDoc(doc(db, 'users', ids.donorA), { panEncrypted: 'forged' }));
-  await assertFails(updateDoc(doc(db, 'users', ids.donorA), { kycStatus: 'approved' }));
-  await assertFails(updateDoc(doc(db, 'users', ids.donorA), { role: 'superAdmin' }));
-  await assertFails(updateDoc(doc(db, 'users', ids.donorA), { superAdmin: true }));
+  await assertFails(getDoc(doc(ownDb, 'users', ids.donorA)));
+  await assertFails(getDoc(doc(ownDb, 'users', ids.donorB)));
+  await assertFails(getDocs(collection(ownDb, 'users')));
+  await assertFails(getDoc(doc(unauthenticatedDb, 'users', ids.donorA)));
+  await assertFails(setDoc(doc(unauthenticatedDb, 'users', `unauth_${ids.storageRoot}`), {
+    name: 'Unauthenticated',
+    email: 'synthetic@example.test',
+    locale: 'en',
+  }));
+  await assertFails(updateDoc(doc(unauthenticatedDb, 'users', ids.donorA), { name: 'Unauthenticated' }));
 });
 
-test('users can create only allowlisted profile fields', async () => {
+test('clients cannot create, update, or delete user profiles', async () => {
   const ids = makeFixture();
-  const allowedDb = firestoreFor(ids.donorA);
-  const deniedDb = firestoreFor(ids.donorB);
+  await seedFixture(ids);
+  const ownDb = firestoreFor(ids.donorA);
 
-  await assertSucceeds(setDoc(doc(allowedDb, 'users', ids.donorA), {
+  await assertFails(setDoc(doc(ownDb, 'users', ids.donorA), {
     name: 'Synthetic donor',
     email: 'synthetic@example.test',
     locale: 'en',
     createdAt: serverTimestamp(),
   }));
-  await assertFails(setDoc(doc(deniedDb, 'users', ids.donorB), {
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { name: 'Updated donor' }));
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { panEncrypted: 'forged' }));
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { kycStatus: 'approved' }));
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { role: 'superAdmin' }));
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { accountStatus: 'suspended' }));
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { totalDonated: 1 }));
+  await assertFails(updateDoc(doc(ownDb, 'users', ids.donorA), { updatedAt: serverTimestamp() }));
+  await assertFails(deleteDoc(doc(ownDb, 'users', ids.donorA)));
+  await assertFails(setDoc(doc(ownDb, 'users', `new_${ids.storageRoot}`), {
     name: 'Synthetic donor',
     email: 'synthetic@example.test',
     locale: 'en',
     createdAt: serverTimestamp(),
-    role: 'owner',
   }));
 });
 

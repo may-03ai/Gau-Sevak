@@ -1,6 +1,6 @@
 # Backend Architecture
 
-**Status:** Limited local Firebase Functions foundation. No product workflow, cloud service, or production deployment is implemented by this foundation. Apply V2.1 to conflicts with V2.0; retain non-conflicting V2.0 scope without treating requirements as implementation evidence.
+**Status:** Limited local Firebase Functions foundation with authenticated user-profile management. Donation/payment and other future workflows, cloud deployment, and production operations are not implemented. Apply V2.1 to conflicts with V2.0; retain non-conflicting V2.0 scope without treating requirements as implementation evidence.
 
 ## Runtime and Build
 
@@ -19,20 +19,21 @@ backend/functions/src/
     auth/auth-guard.ts           Authentication and Super Admin guards
     errors/app-errors.ts         AppError and callable error mapping
     logging/logger.ts            Firebase logger wrappers
-    validation/                  Reserved; no validation implementation yet
+    validation/                  Reserved shared-validation space; no core utility yet
   modules/
     account/account-context.functions.ts
     health/health.functions.ts
-  admin/ analytics/ auth/ campaigns/ certificates/ common/
-  donations/ fraud/ gaushalas/ kyc/ notifications/ payments/
-  payouts/ refunds/ subscriptions/ users/
+    users/user-profile.functions.ts
+    users/user-profile.service.ts
+    users/user-profile.validation.ts
+  other domain folders           Placeholders; no additional workflows implemented
 ```
 
 The remaining domain folders are placeholders, not implemented modules. Current function exports are re-exported from `src/index.ts`.
 
 ## Firebase Admin Clients
 
-`src/config/firebase-admin.ts` finds the existing default Admin app or initializes it if absent, then exports reusable Firebase Admin `auth` and Firestore `db` clients. This module does not initialize multiple default apps. The current exported handlers do not import these clients; the emulator integration test uses the exported Admin Auth client to set claims and clean up synthetic users.
+`src/config/firebase-admin.ts` finds the existing default Admin app or initializes it if absent, then exports reusable Firebase Admin `auth` and Firestore `db` clients. This module does not initialize multiple default apps. The account-context handler uses the authenticated callable context; user-profile handlers use the Admin Auth and Firestore clients. Emulator tests also use Admin Auth to manage synthetic users.
 
 ## Authentication and Authorization
 
@@ -47,8 +48,8 @@ Direct client Firestore and Storage access is governed by their security rules. 
 
 ## Errors and Logging
 
-- `src/core/errors/app-errors.ts` defines `AppError` and `toHttpsError`. Existing `HttpsError` values pass through, `AppError` preserves its code/message, and unexpected errors become a generic internal error. This mapper is not currently wired into either exported handler.
-- `src/core/logging/logger.ts` provides `logInfo`, `logWarning`, and `logError`, forwarding a single event string to the Firebase logger. These wrappers are not currently called by either exported handler; they do not implement audit logging or a full structured logging policy.
+- `src/core/errors/app-errors.ts` defines `AppError` and `toHttpsError`. Existing `HttpsError` values pass through, `AppError` preserves its code/message, and unexpected errors become a generic internal error. User-profile callable handlers use this mapper.
+- `src/core/logging/logger.ts` provides `logInfo`, `logWarning`, and `logError`, forwarding a single event string to the Firebase logger. User-profile failures log a generic event without profile contents or personal data; this is not a full audit logging policy.
 
 ## Exported Functions
 
@@ -56,8 +57,15 @@ Direct client Firestore and Storage access is governed by their security rules. 
 |---|---|---|
 | `healthCheck` | `onRequest` HTTP | Public GET endpoint returning `{ "status": "ok" }`; other methods return 405 with `Allow: GET` and `{ "status": "method_not_allowed" }`. |
 | `getMyAuthContext` | `onCall` HTTPS callable | Requires Firebase-provided authenticated context and returns the caller UID plus email verification, phone-number presence, and Super Admin claim booleans. |
+| `provisionMyProfile` | `onCall` HTTPS callable | Creates or safely reuses the authenticated caller's `users/{uid}` profile; requires a verified Firebase Auth email for first creation. |
+| `getMyProfile` | `onCall` HTTPS callable | Returns only the authenticated caller's allowlisted profile; a missing profile returns `not-found`. |
+| `updateMyProfile` | `onCall` HTTPS callable | Updates only allowlisted caller-owned profile fields and synchronizes email only from verified Firebase Auth. |
 
-Contract details and callable error behavior are in [Authentication and Health API](../api/authentication-api.md).
+Contract details are in [Authentication and Health API](../api/authentication-api.md) and [User Management API](../api/user-management-api.md).
+
+## User Profile Authorization
+
+The user management callables derive the profile document ID only from verified `request.auth.uid`, validate inputs with a strict allowlist, and use explicit ownership checks for Admin SDK operations. Firebase Admin bypasses Firestore Rules, so these checks remain mandatory. Direct client reads, listing, creation, updates, and deletion of `users/{uid}` are denied; profile access goes through the callable APIs. `email` is sourced from Firebase Auth and updated only when that account has a verified email. Account status, roles, PAN/KYC, balances, donation totals/counts, badges, and timestamps are not self-service fields. See the [user management API](../api/user-management-api.md) and [ADR 001](../adr/001-user-profile-boundary.md).
 
 ## Local Emulator Architecture
 
@@ -65,12 +73,12 @@ Contract details and callable error behavior are in [Authentication and Health A
 
 ## Generated Build Output and Deployment
 
-`backend/functions/src/` is the TypeScript source of truth, and `backend/functions/package.json` uses the generated `lib/index.js` as its entry point. The 21 generated `lib/` files are included in the current Milestone 1.0.1 checkpoint and are retained because a verified build-before-deploy hook and CI pipeline do not yet exist.
+`backend/functions/src/` is the TypeScript source of truth, and `backend/functions/package.json` uses the generated `lib/index.js` as its entry point. Generated `lib/` output is tracked and retained because a verified build-before-deploy hook and CI pipeline do not yet exist.
 
 **Recommended policy:** retain generated output until every deployment and CI path reliably builds it from TypeScript. Keep the build command documented and require a fresh build before any deployment so stale compiled JavaScript cannot be deployed. After a verified automated build-before-deploy process is in place, reconsider whether generated output should remain tracked.
 
-At this audit, `firebase.json` contains no Functions `predeploy` build hook, `.github/workflows/` contains only a placeholder, and no CI/deployment workflow runs the build. Firebase deployment therefore has no repository-configured guarantee that `lib/` is freshly generated. Before excluding `lib/` or relying on deployment, add and verify a cross-platform Firebase predeploy build hook and CI build/test job. This documentation task does not change deployment configuration or `.gitignore`.
+At this audit, `firebase.json` contains no Functions `predeploy` build hook, `.github/workflows/` contains only a placeholder, and no CI/deployment workflow runs the build. Firebase deployment therefore has no repository-configured guarantee that `lib/` is freshly generated. Before excluding `lib/` or relying on deployment, add and verify a cross-platform Firebase predeploy build hook and CI build/test job.
 
 ## Not Yet Implemented
 
-No donation/order or Razorpay integration, webhook processing, PostgreSQL ledger, refunds, transfers or settlements, Gaushala onboarding/KYC, membership management, moderation, tax certificates/PDF service, DPDP workflow, search, notifications, reports, scheduled business jobs, rate limits, or production operations are implemented in this backend foundation. These remain future work subject to product scope and applicable V2.1 legal, provider, banking, tax, privacy, security, and owner approval gates.
+No donation/order or Razorpay integration, webhook processing, PostgreSQL ledger, refunds, transfers or settlements, Gaushala onboarding/KYC, membership management, moderation, tax certificates/PDF service, DPDP workflow, search, FCM/SMS notification delivery, reports, scheduled business jobs, rate limits, or production operations are implemented in this backend foundation. These remain future work subject to product scope and applicable V2.1 legal, provider, banking, tax, privacy, security, and owner approval gates.

@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src",
     "test": "npm run build && node --test tests/unit.test.cjs",
-    "test:emulator": "npm run build && node --test tests/emulator.integration.test.cjs"
+    "test:emulator": "node --test tests/emulator.integration.test.cjs"
   },
   "dependencies": {
     "firebase-admin": "14.5.0",
