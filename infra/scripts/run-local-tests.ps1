@@ -18,7 +18,7 @@ if ($firebaseRc.projects.default -ne $projectId) {
 
 if ([string]::IsNullOrWhiteSpace($TestCommand)) {
     $TestCommand = 'node infra/scripts/check-emulator-ports.js'
-    Write-Output 'Running emulator connectivity smoke checks only; no application test suite exists yet.'
+    Write-Output 'Running emulator connectivity smoke checks only; provide -TestCommand to run application or rules tests.'
 }
 
 $androidStudioJavaHome = 'C:\Program Files\Android\Android Studio\jbr'
