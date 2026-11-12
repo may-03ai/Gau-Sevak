@@ -1,7 +1,21 @@
 const assert = require('node:assert/strict');
+const { randomUUID } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { after, before, test } = require('node:test');
+const { deleteApp, initializeApp } = require('firebase/app');
+const {
+  connectAuthEmulator,
+  getAuth,
+  getIdToken,
+  getIdTokenResult,
+  signInWithEmailAndPassword,
+  signOut,
+} = require('firebase/auth');
+const {
+  connectFirestoreEmulator,
+  getFirestore,
+} = require('firebase/firestore');
 const {
   assertFails,
   assertSucceeds,
@@ -12,6 +26,7 @@ const {
   collection,
   deleteDoc,
   getDoc,
+  getDocFromServer,
   getDocs,
   query,
   serverTimestamp,
@@ -22,6 +37,12 @@ const {
 const { getBytes, ref, uploadBytes } = require('firebase/storage');
 
 const projectId = 'demo-gau-sevak';
+const authEmulatorHost = '127.0.0.1:9099';
+const firestoreEmulatorHost = '127.0.0.1';
+process.env.GCLOUD_PROJECT = projectId;
+process.env.FIREBASE_AUTH_EMULATOR_HOST = authEmulatorHost;
+process.env.FIRESTORE_EMULATOR_HOST = `${firestoreEmulatorHost}:8080`;
+const { auth: adminAuth, db: adminDb } = require('../../backend/functions/lib/config/firebase-admin.js');
 const root = path.resolve(__dirname, '../..');
 const firestoreRules = fs.readFileSync(path.join(root, 'infra/firebase/firestore.rules'), 'utf8');
 const storageRules = fs.readFileSync(path.join(root, 'infra/firebase/storage.rules'), 'utf8');
@@ -60,6 +81,9 @@ function makeFixture() {
     ownerB: `ownerB_${suffix}`,
     normalUser: `normal_${suffix}`,
     superAdmin: `super_${suffix}`,
+    superAdminDisabled: `superDisabled_${suffix}`,
+    superAdminMalformed: `superMalformed_${suffix}`,
+    superAdminMissing: `superMissing_${suffix}`,
     gaushalaA: `gaushalaA_${suffix}`,
     gaushalaB: `gaushalaB_${suffix}`,
     gaushalaRevoked: `gaushalaRevoked_${suffix}`,
@@ -125,6 +149,27 @@ async function seedFixture(ids) {
       ['users', ids.ownerB, user(ids.ownerB)],
       ['users', ids.normalUser, user(ids.normalUser)],
       ['users', ids.superAdmin, user(ids.superAdmin)],
+      ['super_admin_access', ids.superAdmin, {
+        enabled: true,
+        updatedAt: new Date(),
+        updatedBy: 'synthetic-operator',
+        reasonCode: 'approved_access',
+        version: 1,
+      }],
+      ['super_admin_access', ids.superAdminDisabled, {
+        enabled: false,
+        updatedAt: new Date(),
+        updatedBy: 'synthetic-operator',
+        reasonCode: 'revoked_access',
+        version: 2,
+      }],
+      ['super_admin_access', ids.superAdminMalformed, {
+        enabled: true,
+        updatedAt: 'not-a-timestamp',
+        updatedBy: 'synthetic-operator',
+        reasonCode: 'approved_access',
+        version: 1,
+      }],
       ['gaushalas', ids.gaushalaA, { status: 'active', name: 'Test A' }],
       ['gaushalas', ids.gaushalaB, { status: 'active', name: 'Test B' }],
       ['gaushalas', ids.gaushalaRevoked, { status: 'suspended', name: 'Revoked test' }],
@@ -403,7 +448,7 @@ test('revoked membership does not grant Gaushala access', async () => {
   await assertFails(getDoc(doc(db, 'payouts', ids.payoutA)));
 });
 
-test('Super Admin custom claim grants Gaushala reads but not direct sensitive access', async () => {
+test('Super Admin claim with enabled state grants Gaushala reads but not direct sensitive access', async () => {
   const ids = makeFixture();
   await seedFixture(ids);
   const superDb = firestoreFor(ids.superAdmin, { superAdmin: true });
@@ -413,6 +458,144 @@ test('Super Admin custom claim grants Gaushala reads but not direct sensitive ac
   await assertFails(getDoc(doc(normalDb, 'gaushalas', ids.gaushalaRevoked)));
   await assertFails(updateDoc(doc(firestoreFor(ids.normalUser, { superAdmin: false }), 'users', ids.normalUser), { superAdmin: true }));
   await assertFails(updateDoc(doc(normalDb, 'users', ids.normalUser), { role: 'superAdmin' }));
+});
+
+test('Super Admin reads require an exact claim and valid enabled authorization state', async () => {
+  const ids = makeFixture();
+  await seedFixture(ids);
+
+  await assertSucceeds(getDoc(doc(
+    firestoreFor(ids.superAdmin, { superAdmin: true }),
+    'gaushalas',
+    ids.gaushalaRevoked,
+  )));
+  await assertFails(getDoc(doc(
+    firestoreFor(ids.superAdminMissing, { superAdmin: true }),
+    'gaushalas',
+    ids.gaushalaRevoked,
+  )));
+  await assertFails(getDoc(doc(
+    firestoreFor(ids.superAdminDisabled, { superAdmin: true }),
+    'gaushalas',
+    ids.gaushalaRevoked,
+  )));
+  await assertFails(getDoc(doc(
+    firestoreFor(ids.superAdminMalformed, { superAdmin: true }),
+    'gaushalas',
+    ids.gaushalaRevoked,
+  )));
+
+  for (const claim of [false, null, 'true', 1]) {
+    await assertFails(getDoc(doc(
+      firestoreFor(ids.superAdmin, { superAdmin: claim }),
+      'gaushalas',
+      ids.gaushalaRevoked,
+    )));
+  }
+});
+
+test('clients cannot read or modify Super Admin authorization state', async () => {
+  const ids = makeFixture();
+  await seedFixture(ids);
+  const clientDb = firestoreFor(ids.superAdmin, { superAdmin: true });
+  const ownState = doc(clientDb, 'super_admin_access', ids.superAdmin);
+
+  await assertFails(getDoc(ownState));
+  await assertFails(getDocs(collection(clientDb, 'super_admin_access')));
+  await assertFails(setDoc(doc(clientDb, 'super_admin_access', ids.normalUser), {
+    enabled: true,
+    updatedAt: new Date(),
+    updatedBy: ids.normalUser,
+    reasonCode: 'self_granted',
+    version: 1,
+  }));
+  await assertFails(updateDoc(ownState, { enabled: false }));
+  await assertFails(deleteDoc(ownState));
+});
+
+test('disabling Super Admin state denies a subsequent read with the same Auth Emulator ID token', async () => {
+  const suffix = randomUUID();
+  const uid = `super-admin-revocation-${suffix}`;
+  const email = `super-admin-revocation-${suffix}@example.test`;
+  const password = `LocalOnly-${randomUUID()}!`;
+  const gaushalaId = `suspended-${suffix}`;
+  const stateRef = adminDb.collection('super_admin_access').doc(uid);
+  const gaushalaRef = adminDb.collection('gaushalas').doc(gaushalaId);
+  const clientApp = initializeApp({ apiKey: 'fake-api-key', projectId }, `revocation-${suffix}`);
+  const clientAuth = getAuth(clientApp);
+  let userCreated = false;
+  const cleanupErrors = [];
+
+  try {
+    connectAuthEmulator(clientAuth, `http://${authEmulatorHost}`, { disableWarnings: true });
+    const clientDb = getFirestore(clientApp);
+    connectFirestoreEmulator(clientDb, firestoreEmulatorHost, 8080);
+
+    const emulatorUser = await adminAuth.createUser({ uid, email, password });
+    userCreated = true;
+    await adminAuth.setCustomUserClaims(emulatorUser.uid, { superAdmin: true });
+    await stateRef.set({
+      enabled: true,
+      updatedAt: new Date(),
+      updatedBy: 'synthetic-test-operator',
+      reasonCode: 'test_authorized_access',
+      version: 1,
+    });
+    await gaushalaRef.set({ status: 'suspended', name: 'Synthetic restricted record' });
+
+    const credential = await signInWithEmailAndPassword(clientAuth, email, password);
+    const signedInUser = credential.user;
+    const capturedToken = await getIdToken(signedInUser);
+    const tokenResult = await getIdTokenResult(signedInUser);
+    const decodedToken = await adminAuth.verifyIdToken(capturedToken);
+    assert.equal(signedInUser.uid, uid);
+    assert.equal(tokenResult.token, capturedToken);
+    assert.equal(tokenResult.claims.superAdmin, true);
+    assert.equal(decodedToken.uid, uid);
+    assert.equal(decodedToken.superAdmin, true);
+
+    const restrictedRecord = doc(clientDb, 'gaushalas', gaushalaId);
+    assert.equal(clientAuth.currentUser, signedInUser);
+    assert.equal(await getIdToken(signedInUser), capturedToken);
+    await assertSucceeds(getDocFromServer(restrictedRecord));
+
+    await stateRef.update({
+      enabled: false,
+      updatedAt: new Date(),
+      updatedBy: 'synthetic-test-operator',
+      reasonCode: 'test_revoked_access',
+      version: 2,
+    });
+
+    assert.equal(clientAuth.currentUser, signedInUser);
+    assert.equal(signedInUser.uid, uid);
+    assert.equal(await getIdToken(signedInUser), capturedToken);
+    await assertFails(getDocFromServer(restrictedRecord));
+    assert.equal(clientAuth.currentUser, signedInUser);
+    assert.equal(await getIdToken(signedInUser), capturedToken);
+  } finally {
+    const cleanup = async (operation) => {
+      try {
+        await operation();
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    };
+
+    await cleanup(async () => {
+      if (clientAuth.currentUser) {
+        await signOut(clientAuth);
+      }
+    });
+    await cleanup(() => deleteApp(clientApp));
+    await cleanup(() => stateRef.delete());
+    await cleanup(() => gaushalaRef.delete());
+    if (userCreated) {
+      await cleanup(() => adminAuth.deleteUser(uid));
+    }
+
+    assert.deepEqual(cleanupErrors, [], 'Synthetic emulator fixture cleanup must succeed');
+  }
 });
 
 test('sensitive and administrative collections deny direct client access even to Super Admin claims', async () => {

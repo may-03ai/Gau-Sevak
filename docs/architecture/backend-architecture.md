@@ -40,9 +40,11 @@ The remaining domain folders are placeholders, not implemented modules. Current 
 `src/core/auth/auth-guard.ts` defines:
 
 - `requireAuthenticatedUser(request)`: requires a non-empty UID in the callable request's Firebase-provided `request.auth` context, otherwise throws `HttpsError('unauthenticated', ...)`.
-- `requireSuperAdmin(request)`: first requires authentication, then requires `request.auth.token.superAdmin === true`, otherwise throws `HttpsError('permission-denied', ...)`.
+- `requireActiveSuperAdmin(request)`: asynchronously requires authenticated callable context, the exact `superAdmin === true` claim, and a valid enabled `super_admin_access/{uid}` state document. Missing, malformed, disabled, or inaccessible state throws a generic `permission-denied`.
 
-Firebase callable infrastructure validates the Firebase Auth credential and supplies `request.auth`; application code does not manually decode or verify JWTs. `getMyAuthContext` uses the authenticated context to return information about the caller. `requireSuperAdmin` is reusable but is not connected to an exported administrative function. No Gaushala membership, tenant authorization, claim-assignment lifecycle, or business authorization endpoint exists.
+Firebase callable infrastructure validates the Firebase Auth credential and supplies `request.auth`; application code does not manually decode or verify JWTs. `getMyAuthContext` reports the verified claim but does not authorize privileged operations. `requireActiveSuperAdmin` is reusable but is not connected to an exported administrative function. No Gaushala membership, tenant authorization, claim-assignment lifecycle, or business authorization endpoint exists.
+
+Super Admin authorization requires both the exact token claim and the server-managed state document. The state collection is client-inaccessible. Each guarded backend operation performs an Admin SDK read and each Super Admin Rules check performs a state lookup; neither uses cross-request authorization caching. See [ADR 002](../adr/002-super-admin-immediate-revocation.md).
 
 Direct client Firestore and Storage access is governed by their security rules. Trusted backend use of the Firebase Admin SDK bypasses those rules and must receive explicit server-side authorization and appropriately scoped IAM for any future sensitive operation. The existing emulator Rules tests do not test Admin SDK authorization.
 

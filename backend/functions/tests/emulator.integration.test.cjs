@@ -5,6 +5,7 @@ process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
 const { auth, db } = require('../lib/config/firebase-admin.js');
+const { requireActiveSuperAdmin } = require('../lib/core/auth/auth-guard.js');
 
 const projectId = 'demo-gau-sevak';
 const authBase = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`;
@@ -134,6 +135,42 @@ test('getMyAuthContext recognizes a Firebase Admin-set Super Admin claim', async
   const result = body.result ?? body.data;
   assert.equal(result.uid, superAdminUser.localId);
   assert.equal(result.superAdmin, true);
+});
+
+test('requireActiveSuperAdmin observes server-managed revocation state', async () => {
+  const stateRef = db.collection('super_admin_access').doc(superAdminUser.localId);
+  const request = {
+    auth: {
+      uid: superAdminUser.localId,
+      token: { superAdmin: true },
+    },
+  };
+
+  await stateRef.set({
+    enabled: true,
+    updatedAt: new Date(),
+    updatedBy: 'synthetic-operator',
+    reasonCode: 'approved_access',
+    version: 1,
+  });
+
+  try {
+    assert.equal((await requireActiveSuperAdmin(request)).uid, superAdminUser.localId);
+
+    await stateRef.update({
+      enabled: false,
+      updatedAt: new Date(),
+      version: 2,
+    });
+
+    await assert.rejects(
+      requireActiveSuperAdmin(request),
+      (error) => error.code === 'permission-denied'
+        && error.message === 'Super Admin access is required.',
+    );
+  } finally {
+    await stateRef.delete();
+  }
 });
 
 test('profile callables reject unauthenticated callers', async () => {

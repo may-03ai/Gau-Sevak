@@ -97,7 +97,15 @@ This milestone establishes the Firebase Functions backend foundation only. It do
 
 The verified-email requirement is the current Milestone 1.0.2 implementation policy, not a permanently approved platform-wide rule. Product-owner confirmation remains pending. Completion is for the implemented and tested local-development scope and does not imply production readiness.
 
-### 1.0.3 Authentication and Authorization Hardening — Not started
+### 1.0.3 Authentication and Authorization Hardening — In review (local implementation; production operations pending)
+- [x] Require both the exact verified Super Admin custom claim and valid enabled `super_admin_access/{uid}` state for restricted Firestore reads and the reusable backend guard.
+- [x] Deny all direct client reads and writes to Super Admin authorization state; preserve Owner/Editor/Viewer membership rules and profile callable-only access.
+- [x] Verify backend unit tests (18), Functions Emulator guard tests (14), and Firestore/Storage Rules (22/4), including a same Auth Emulator ID-token immediate-revocation regression; see [backend test plan](../testing/backend-test-plan.md) and [Rules test plan](../testing/security-rules-test-plan.md).
+- [x] Document the selected immediate-revocation decision, state schema, access limitations, and unapproved production operations in [ADR 002](../adr/002-super-admin-immediate-revocation.md).
+- [ ] Approve a trusted production grant/revocation operator procedure, IAM/MFA, and append-only audit mechanism before any production use.
+- [ ] Resolve disabled/deleted privileged-account lifecycle behavior with the product owner.
+
+No production claim was assigned or modified, no privileged administrative function was added, and no deployment or production-readiness approval is implied.
 
 ### 1.0.4 Gaushala Membership Management — Not started
 

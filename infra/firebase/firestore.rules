@@ -5,8 +5,34 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function superAdminAccessPath() {
+      return /databases/$(database)/documents/super_admin_access/$(request.auth.uid);
+    }
+
+    function hasEnabledSuperAdminState() {
+      let state = get(superAdminAccessPath()).data;
+      return state.keys().hasAll([
+          'enabled', 'updatedAt', 'updatedBy', 'reasonCode', 'version'
+        ])
+        && state.keys().hasOnly([
+          'enabled', 'updatedAt', 'updatedBy', 'reasonCode', 'version'
+        ])
+        && state.enabled is bool
+        && state.enabled == true
+        && state.updatedAt is timestamp
+        && state.updatedBy is string
+        && state.updatedBy.size() > 0
+        && state.reasonCode is string
+        && state.reasonCode.size() > 0
+        && state.version is int
+        && state.version > 0;
+    }
+
     function isSuperAdmin() {
-      return signedIn() && request.auth.token.superAdmin == true;
+      return signedIn()
+        && request.auth.token.superAdmin == true
+        && exists(superAdminAccessPath())
+        && hasEnabledSuperAdminState();
     }
 
     function membershipPath(gaushalaId) {
@@ -135,6 +161,10 @@ service cloud.firestore {
     }
 
     match /platform_config/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /super_admin_access/{userId} {
       allow read, write: if false;
     }
 

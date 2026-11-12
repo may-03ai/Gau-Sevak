@@ -1,10 +1,11 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { getApps } = require('firebase-admin/app');
+const { Timestamp } = require('firebase-admin/firestore');
 const { auth, db } = require('../lib/config/firebase-admin.js');
 const {
+  createActiveSuperAdminGuard,
   requireAuthenticatedUser,
-  requireSuperAdmin,
 } = require('../lib/core/auth/auth-guard.js');
 const { AppError, toHttpsError } = require('../lib/core/errors/app-errors.js');
 const { getVerifiedAccountContext } = require('../lib/modules/account/account-context.functions.js');
@@ -101,16 +102,69 @@ test('requireAuthenticatedUser returns the UID from verified auth, not request d
   assert.equal(requireAuthenticatedUser(request).uid, 'verified-uid');
 });
 
-test('requireSuperAdmin requires the verified boolean custom claim', () => {
-  assert.throws(
-    () => requireSuperAdmin({ auth: { uid: 'regular-user', token: { superAdmin: false } } }),
-    (error) => error.code === 'permission-denied',
+test('requireActiveSuperAdmin fails closed unless claim and authorization state are valid', async () => {
+  const validState = {
+    enabled: true,
+    updatedAt: Timestamp.now(),
+    updatedBy: 'synthetic-operator',
+    reasonCode: 'approved_access',
+    version: 1,
+  };
+  const request = (claim) => ({
+    auth: {
+      uid: 'admin-user',
+      token: claim === undefined ? {} : { superAdmin: claim },
+    },
+  });
+  const isPermissionDenied = (error) => error.code === 'permission-denied'
+    && error.message === 'Super Admin access is required.';
+  let stateReadUid;
+  const requireActiveSuperAdmin = createActiveSuperAdminGuard(async (uid) => {
+    stateReadUid = uid;
+    return validState;
+  });
+
+  await assert.rejects(
+    requireActiveSuperAdmin({ auth: null }),
+    (error) => error.code === 'unauthenticated',
+  );
+  await assert.rejects(
+    requireActiveSuperAdmin({ auth: { uid: '', token: { superAdmin: true } } }),
+    (error) => error.code === 'unauthenticated',
   );
 
-  const authContext = requireSuperAdmin({
-    auth: { uid: 'admin-user', token: { superAdmin: true } },
-  });
+  for (const claim of [undefined, false, null, 'true', 1]) {
+    await assert.rejects(
+      requireActiveSuperAdmin(request(claim)),
+      isPermissionDenied,
+    );
+  }
+  assert.equal(stateReadUid, undefined);
+
+  for (const state of [
+    undefined,
+    { ...validState, enabled: false },
+    { ...validState, enabled: 'true' },
+    { ...validState, updatedAt: 'not-a-timestamp' },
+    { ...validState, unexpected: true },
+  ]) {
+    await assert.rejects(
+      createActiveSuperAdminGuard(async () => state)(request(true)),
+      isPermissionDenied,
+    );
+  }
+
+  await assert.rejects(
+    createActiveSuperAdminGuard(async () => {
+      throw new Error('private Firestore failure details');
+    })(request(true)),
+    (error) => isPermissionDenied(error)
+      && !error.message.includes('private Firestore failure details'),
+  );
+
+  const authContext = await requireActiveSuperAdmin(request(true));
   assert.equal(authContext.uid, 'admin-user');
+  assert.equal(stateReadUid, 'admin-user');
 });
 
 test('getVerifiedAccountContext returns only the caller UID and verification booleans', () => {

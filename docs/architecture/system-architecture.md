@@ -1,6 +1,6 @@
 # System Architecture
 
-**Status:** Proposed baseline for review; no service is provisioned. A limited Firebase Functions foundation exists for health checks and verified account context, but no product workflows are implemented. V2.1 corrects V2.0 where they conflict.
+**Status:** Proposed baseline for review; no service is provisioned. A limited Firebase Functions foundation exists for health checks, verified account context, and authenticated user-profile management; broader product workflows are not implemented. V2.1 corrects V2.0 where they conflict.
 
 ## Logical View
 ```mermaid
@@ -28,8 +28,9 @@ This diagram is a target proposal from the documents, not a verified deployment 
 
 ## Responsibilities and Trust Boundaries
 - **Flutter / React clients:** display data and submit intents. Treat every input and client callback as untrusted; never hold privileged secrets or decide financial status.
-- **Firebase Auth:** identity provider. Claims and memberships are server-managed; backend resolves tenant/object permissions on every sensitive request.
+- **Firebase Auth:** identity provider. Claims and memberships are server-managed; backend resolves tenant/object permissions on every sensitive request. Super Admin access requires both the verified custom claim and enabled server-managed authorization state; claim removal alone is not immediate revocation.
 - **Cloud Functions:** trusted API and orchestration boundary. Validate auth, authorization, schema, current Gaushala eligibility/status, idempotency, and provider responses. Admin SDK access bypasses Firestore rules and requires explicit server authorization/IAM.
+- **Super Admin authorization state:** `super_admin_access/{uid}` is a server-managed Firestore record inaccessible to client SDKs. Missing, disabled, malformed, or unavailable state denies access. The trusted production provisioning, revocation, audit, and IAM procedures are not yet approved or implemented; see [ADR 002](../adr/002-super-admin-immediate-revocation.md).
 - **Firestore:** application records and read projections, including public profiles and donor-visible status. It is not the financial source of truth and does not provide arbitrary SQL unique constraints.
 - **Cloud SQL PostgreSQL:** V2.1's authoritative financial ledger and durable event/idempotency storage proposal. It must reconcile to Razorpay events, transfers, and settlements. An event table alone is not a balanced double-entry ledger.
 - **Razorpay Route:** external payment/linked-account/transfer provider. Exact charity marketplace eligibility, APIs, states, holds, refunds, settlement, and recurring behavior require written account-specific approval.

@@ -100,7 +100,7 @@ npm --prefix backend/functions run lint
 # Run backend unit tests; this command builds and regenerates lib/ first
 npm --prefix backend/functions test
 
-# Run the combined Firestore and Storage Rules suite (19 Firestore, 4 Storage tests)
+# Run the combined Firestore and Storage Rules suite (22 Firestore, 4 Storage tests)
 .\infra\scripts\run-local-tests.ps1 -TestCommand "node --test tests/security/security.rules.test.js"
 
 # Build first, then run Functions Emulator integration tests (the script itself does not build)
@@ -111,7 +111,7 @@ npm --prefix backend/functions run build
 firebase emulators:start --project demo-gau-sevak --only auth,firestore,functions,storage,ui
 ```
 
-Latest verified local test evidence is 54 passing cases across four distinct suites: 18 backend unit tests, 13 Functions Emulator integration tests, 19 Firestore Rules tests, and 4 Storage Rules tests. The Rules cases are the separate Milestone 0.4 client-security suite; they do not verify production IAM or all backend Admin SDK authorization paths. Emulator tests use synthetic demo Auth users and emulator services.
+Latest verified local test evidence is 58 passing cases across four distinct suites: 18 backend unit tests, 14 Functions Emulator integration tests, 22 Firestore Rules tests, and 4 Storage Rules tests. The Rules cases are the separate client-security suite; they do not verify production IAM or Admin SDK authorization. A same-session emulator regression verifies that disabling Super Admin state denies a subsequent restricted Rules read without refreshing the authenticated client context. Emulator tests use synthetic demo Auth users and emulator services.
 
 `firebase emulators:exec` shuts down the emulator processes it starts after its command exits. With no `-TestCommand`, the helper runs `node infra/scripts/check-emulator-ports.js` inside the emulator execution; this checks connectivity and is not application test coverage. Backend tests cover implemented Functions and profile behavior; Flutter and React UI test suites have not yet been implemented. For test names, limitations, and suite details, see the [backend test plan](../testing/backend-test-plan.md).
 
